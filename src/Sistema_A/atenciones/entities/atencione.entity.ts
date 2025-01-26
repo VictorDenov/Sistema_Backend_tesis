@@ -4,7 +4,7 @@ import { Estudiante } from '../../usuarios/components/estudiantes/entities/estud
 
 @Entity()
 export class AtencionEstudiante {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('increment')
   id: number;
 
   @ManyToOne(() => Docente, (docente) => docente.atencionesEstudiantes)

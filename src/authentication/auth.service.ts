@@ -20,89 +20,123 @@ import { EstudiantesRepository } from 'src/Sistema_A/usuarios/components/estudia
 import { LoginDocenteDto } from './dto/login-docente';
 
 
+
+
 @Injectable()
 export class AuthService {
+  constructor(
+    @InjectRepository(Role)
+    private readonly rolRepository: RolRepository,
+    @InjectRepository(Usuario)
+    private readonly authRepository: AuthRepository,
+    @InjectRepository(Docente)
+    private readonly docenteRepository: DocenteRepository,
+    @InjectRepository(Estudiante)
+    private readonly authRepositoryEstudiante: EstudiantesRepository,
+    private readonly jwtService: JwtService,
+  ) {}
 
-    constructor(
-        @InjectRepository(Role)
-        private readonly rolRepository: RolRepository,
-        @InjectRepository(Usuario)
-        private readonly authRepository: AuthRepository,
-        @InjectRepository(Docente)
-        private readonly docenteRepository: DocenteRepository,
-        @InjectRepository(Estudiante)
-        private readonly authRepositoryEstudiante: EstudiantesRepository,
-        private readonly jwtService: JwtService
-    ) {}
+  // Obtener todos los usuarios
+  async getall(): Promise<Usuario[]> {
+    const usuarios = await this.authRepository.find();
+    if (!usuarios.length) throw new NotFoundException(new MessageDto('No hay usuarios en la lista'));
+    return usuarios;
+  }
 
-    async getall(): Promise<Usuario[]> {
-        const usuarios = await this.authRepository.find();
-        if(!usuarios.length) throw new NotFoundException(new MessageDto('no hay usuarios en la lista'));
-        return usuarios;
-    }
-
- 
-    async login(dto: LoginUsuarioDto): Promise<any> {
-        const {nombreUsuario} = dto;
-        const usuario = await this.authRepository.findOne({where: [{nombreUsuario: nombreUsuario}, {email: nombreUsuario}]});
-        if(!usuario) return new UnauthorizedException(new MessageDto('no existe el usuario'));
-        const passwordOK = await compare(dto.password, usuario.password);
-        if(!passwordOK) return new UnauthorizedException(new MessageDto('contraseña errónea'));
-        const payload: PayloadInterface = {
-            id: usuario.id,
-            nombreUsuario: usuario.nombreUsuario,
-            email: usuario.email,
-            roles: usuario.roles.map(rol => rol.rolNombre as NombreRoles)
-        }
-        const token = await this.jwtService.sign(payload);
-        return {token};
-    }
-
-
-    async logindocente(dto: LoginDocenteDto): Promise<any> {
-        const {nombreDocente} = dto;
-        const docente = await this.docenteRepository.findOne({where: [{nombre: nombreDocente}, {email: nombreDocente}]});
-        if (!docente) throw new UnauthorizedException(new MessageDto('no existe el docente'));
-        const passwordOK = await compare(dto.password, docente.password);
-        if (!passwordOK) throw new UnauthorizedException(new MessageDto('contraseña errónea'));
-        const payload: PayloadInterfaceDocente = {
-            id: docente.id,
-            nombredocente: docente.nombre,
-            emailDocente: docente.email,
-            roles: docente.roles.map(rol => rol.rolNombre as string)
-        };
-        const token = await this.jwtService.sign(payload);
-        return {token};
-    }
+  // Login para el usuario
+  async login(dto: LoginUsuarioDto): Promise<any> {
+    const usuario = await this.findUserByEmailOrUsername(dto.nombreUsuario);
+    if (!usuario) throw new UnauthorizedException(new MessageDto('No existe el usuario'));
     
+    const passwordOK = await compare(dto.password, usuario.password);
+    if (!passwordOK) throw new UnauthorizedException(new MessageDto('Contraseña errónea'));
 
-    async loginestudiante(dto: LoginEstudianteDto): Promise<any> {
-        const {nombreUsuario} = dto;
-        const estudiante = await this.authRepositoryEstudiante.findOne({where: [{nombres: nombreUsuario}, {email: nombreUsuario}]});
-        if(!estudiante) return new UnauthorizedException(new MessageDto('no existe el estudiante'));
-        const passwordOK = await compare(dto.password, estudiante.password);
-        if(!passwordOK) return new UnauthorizedException(new MessageDto('contraseña errónea'));
-        const payload: PayloadInterfaceEstudiante = {
-            id: estudiante.id,
-            nombresestudiantes: estudiante.nombres,
-            emaileEstudiante: estudiante.email,
-            roles: estudiante.roles.map(rol => rol.rolNombre as NombreRoles)
-        }
-        const token = await this.jwtService.sign(payload);
-        return {token};
-    }
+    const payload: PayloadInterface = this.createUserPayload(usuario);
+    const token = await this.jwtService.sign(payload);
+    return { token };
+  }
 
+  // Login para el docente
+  async logindocente(dto: LoginDocenteDto): Promise<any> {
+    const docente = await this.findDocenteByEmailOrName(dto.nombreDocente);
+    if (!docente) throw new UnauthorizedException(new MessageDto('No existe el docente'));
 
-    async refresh(dto: TokenDto): Promise<any> {
-        const usuario = await this.jwtService.decode(dto.token);
-        const payload: PayloadInterface = {
-            id: usuario[`id`],
-            nombreUsuario: usuario[`nombreUsuario`],
-            email: usuario[`email`],
-            roles: usuario[`roles`]
-        }
-        const token = await this.jwtService.sign(payload);
-        return {token};
-    }
-    
+    const passwordOK = await compare(dto.password, docente.password);
+    if (!passwordOK) throw new UnauthorizedException(new MessageDto('Contraseña errónea'));
+
+    const payload: PayloadInterfaceDocente = this.createDocentePayload(docente);
+    const token = await this.jwtService.sign(payload);
+    return { token };
+  }
+
+  // Login para el estudiante
+  async loginestudiante(dto: LoginEstudianteDto): Promise<any> {
+    const estudiante = await this.findEstudianteByEmailOrName(dto.nombreEstudiante);
+    if (!estudiante) throw new UnauthorizedException(new MessageDto('No existe el estudiante'));
+
+    const passwordOK = await compare(dto.password, estudiante.password);
+    if (!passwordOK) throw new UnauthorizedException(new MessageDto('Contraseña errónea'));
+
+    const payload: PayloadInterfaceEstudiante = this.createEstudiantePayload(estudiante);
+    const token = await this.jwtService.sign(payload);
+    return { token };
+  }
+
+  // Refresh token
+  async refresh(dto: TokenDto): Promise<any> {
+    const usuario = await this.jwtService.decode(dto.token);
+    const payload: PayloadInterface = {
+      id: usuario[`id`],
+      nombreUsuario: usuario[`nombreUsuario`],
+      email: usuario[`email`],
+      roles: usuario[`roles`],
+    };
+    const token = await this.jwtService.sign(payload);
+    return { token };
+  }
+
+  // Buscar un usuario por nombre de usuario o email
+  private async findUserByEmailOrUsername(nombreUsuario: string): Promise<Usuario> {
+    return this.authRepository.findOne({ where: [{ nombreUsuario }, { email: nombreUsuario }] });
+  }
+
+  // Buscar un docente por nombre o email
+  private async findDocenteByEmailOrName(nombreDocente: string): Promise<Docente> {
+    return this.docenteRepository.findOne({ where: [{ Primernombre: nombreDocente }, { email: nombreDocente }] });
+  }
+
+  // Buscar un estudiante por nombre o email
+  private async findEstudianteByEmailOrName(nombreEstudiante: string): Promise<Estudiante> {
+    return this.authRepositoryEstudiante.findOne({ where: [{ nombres: nombreEstudiante }, { email: nombreEstudiante }] });
+  }
+
+  // Crear payload para el usuario
+  private createUserPayload(usuario: Usuario): PayloadInterface {
+    return {
+      id: usuario.id,
+      nombreUsuario: usuario.nombreUsuario,
+      email: usuario.email,
+      roles: usuario.roles.map(rol => rol.rolNombre),
+    };
+  }
+
+  // Crear payload para el docente
+  private createDocentePayload(docente: Docente): PayloadInterfaceDocente {
+    return {
+      id: docente.id,
+      nombreDocente: docente. Primernombre,
+      emailDocente: docente.email,
+      roles: docente.roles.map(rol => rol.rolNombre),
+    };
+  }
+
+  // Crear payload para el estudiante
+  private createEstudiantePayload(estudiante: Estudiante): PayloadInterfaceEstudiante {
+    return {
+      id: estudiante.id,
+      nombresestudiantes: estudiante.nombres,
+      emaileEstudiante: estudiante.email,
+      roles: estudiante.roles.map(rol => rol.rolNombre),
+    };
+  }
 }

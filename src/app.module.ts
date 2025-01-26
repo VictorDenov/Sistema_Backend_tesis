@@ -16,9 +16,16 @@ import { DocentesModule } from './Sistema_A/usuarios/components/docentes/docente
 import { EstudiantesModule } from './Sistema_A/usuarios/components/estudiantes/estudiantes.module';
 import { CarrerasModule } from './Sistema_A/carreras/carreras.module';
 import { AuthModule } from './authentication/auth.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
+
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'), // Ruta donde se guardan las imágenes
+      serveRoot: '/uploads', // URL para acceder a las imágenes
+    }),
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,
@@ -36,6 +43,7 @@ import { AuthModule } from './authentication/auth.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true,
         logging: false,
+        dropSchema: true, 
       }),
       inject: [ConfigService],
     }),

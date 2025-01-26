@@ -18,7 +18,7 @@ import { Docente } from 'src/Sistema_A/usuarios/components/docentes/entities/doc
     @PrimaryGeneratedColumn('increment')
     id: number;
   
-    @Column({type: 'varchar', length: 10, nullable: false, unique: true})
+    @Column({type: 'varchar', length: 200, nullable: false, unique: true})
     nombreCarrera: string;
   
     @Column({ type: 'text', nullable: true })

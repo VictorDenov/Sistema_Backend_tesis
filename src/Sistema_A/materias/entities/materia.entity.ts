@@ -30,14 +30,6 @@ import { Estudiante } from 'src/Sistema_A/usuarios/components/estudiantes/entiti
     @ManyToOne(() => Semestre, (semestre) => semestre.materias, { nullable: false })
     semestre: Semestre;
   
-    // Relación con Docente (Muchos a Muchos)
-    @ManyToMany(() => Docente, (docente) => docente.materias)
-    @JoinTable({
-      name: 'docente_materia',
-      joinColumn: { name: 'materia_id', referencedColumnName: 'id' },
-      inverseJoinColumn: { name: 'docente_id', referencedColumnName: 'id' },
-    })
-    docentes: Docente[];
 
     @ManyToMany(() => Estudiante, (estudiante) => estudiante.materias)
   estudiantes: Estudiante[];

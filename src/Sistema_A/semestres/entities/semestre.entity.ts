@@ -24,6 +24,4 @@ export class Semestre {
   @OneToMany(() => Estudiante, (estudiante) => estudiante.semestre)
   estudiantes: Estudiante[];
 
-  @ManyToMany(() => Docente, (docente) => docente.semestres)
-  docentes: Docente[];
 }

@@ -8,7 +8,7 @@ export interface PayloadInterface {
 
 export interface PayloadInterfaceDocente {
     id: number;
-    nombredocente: string;
+    nombreDocente: string;
     emailDocente: string;
     roles: string[];
 }
